@@ -1,0 +1,45 @@
+name: Unpack Project
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "Deacon-Service-Management-FINAL.zip"
+      - ".github/workflows/unpack-project.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  unpack:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Unzip project
+        run: |
+          rm -rf /tmp/deacon
+          mkdir -p /tmp/deacon
+          unzip -q Deacon-Service-Management-FINAL.zip -d /tmp/deacon
+
+          ROOT=$(find /tmp/deacon -maxdepth 1 -mindepth 1 -type d | head -1)
+
+          cp -a "$ROOT"/. .
+
+          rm -f Deacon-Service-Management-FINAL.zip
+
+      - name: Commit project
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add -A
+
+          if git diff --cached --quiet; then
+            echo "No changes"
+          else
+            git commit -m "Install Deacon Service project"
+            git push
+          fi

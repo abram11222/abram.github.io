@@ -15,48 +15,43 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. تحميل المشروع
+
       - name: Checkout
         uses: actions/checkout@v4
 
-      # 2. Java 17
-      - name: Setup Java
+      - name: Setup Java 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "17"
 
-      # 3. Android SDK
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-
-      # 4. التأكد من شكل المشروع
-      - name: Verify Project
+      - name: Verify Android Project
         shell: bash
         run: |
-          echo "===== PROJECT ROOT ====="
+          echo "======================================"
+          echo "Checking Android project..."
+          echo "======================================"
+
           pwd
-          echo "===== FILES ====="
           ls -la
 
-          test -d app || {
-            echo "ERROR: app folder not found"
+          if [ ! -d "app" ]; then
+            echo "ERROR: app directory not found."
             exit 1
-          }
+          fi
 
-          test -f settings.gradle.kts || {
-            echo "ERROR: settings.gradle.kts not found"
+          if [ ! -f "settings.gradle.kts" ]; then
+            echo "ERROR: settings.gradle.kts not found."
             exit 1
-          }
+          fi
 
-          test -f build.gradle.kts || {
-            echo "ERROR: build.gradle.kts not found"
+          if [ ! -f "build.gradle.kts" ]; then
+            echo "ERROR: build.gradle.kts not found."
             exit 1
-          }
+          fi
 
-          echo "Project structure is OK."
+          echo "Android project structure OK."
 
-      # 5. إنشاء الملف المطلوب بواسطة Secrets Gradle Plugin
       - name: Create .env.example
         shell: bash
         run: |
@@ -66,16 +61,25 @@ jobs:
           EOF
 
           echo ".env.example created successfully."
-          ls -la .env.example
 
-      # 6. تثبيت Gradle
-      # المشروع الحالي لا يحتوي على gradlew
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "9.3.1"
 
-      # 7. Build
+      - name: Check Android SDK
+        shell: bash
+        run: |
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
+
+          if [ -z "$ANDROID_HOME" ]; then
+            echo "ERROR: Android SDK not found."
+            exit 1
+          fi
+
+          echo "Android SDK detected."
+
       - name: Build Debug APK
         shell: bash
         run: |
@@ -83,7 +87,6 @@ jobs:
             --stacktrace \
             --no-daemon
 
-      # 8. التأكد أن الـ APK اتعمل فعلاً
       - name: Verify APK
         shell: bash
         run: |
@@ -91,22 +94,24 @@ jobs:
 
           if [ ! -f "$APK" ]; then
             echo "ERROR: APK was not generated."
-            echo "Searching for APK files..."
+
+            echo "Searching for APK files:"
             find . -type f -name "*.apk" -print
+
             exit 1
           fi
 
           if [ ! -s "$APK" ]; then
-            echo "ERROR: APK is empty."
+            echo "ERROR: APK file is empty."
             exit 1
           fi
 
           echo "======================================"
           echo "       APK BUILD SUCCESSFUL"
           echo "======================================"
+
           ls -lh "$APK"
 
-      # 9. رفع الـ APK كـ Artifact
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:

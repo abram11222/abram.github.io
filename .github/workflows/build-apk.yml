@@ -7,7 +7,7 @@ on:
       - main
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   build:
@@ -23,7 +23,7 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Setup Gradle 9.3.1
+      - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '9.3.1'
@@ -34,24 +34,23 @@ jobs:
           pwd
           ls -la
 
-          echo "===== CHECKING REQUIRED FILES ====="
+          test -d app
+          test -f settings.gradle.kts
+          test -f build.gradle.kts
 
-          if [ ! -d "app" ]; then
-            echo "ERROR: app directory is missing."
-            exit 1
-          fi
+          echo "Android project structure OK."
 
-          if [ ! -f "settings.gradle.kts" ]; then
-            echo "ERROR: settings.gradle.kts is missing."
-            exit 1
-          fi
+      - name: Create required .env.example
+        run: |
+          cat > .env.example <<'EOF'
+# Build-time defaults.
+# Supabase connection is provided by SupabaseConfig.kt.
+SUPABASE_URL=
+SUPABASE_ANON_KEY=
+EOF
 
-          if [ ! -f "build.gradle.kts" ]; then
-            echo "ERROR: build.gradle.kts is missing."
-            exit 1
-          fi
-
-          echo "Android project structure is OK."
+          echo ".env.example created:"
+          ls -la .env.example
 
       - name: Build Debug APK
         run: |

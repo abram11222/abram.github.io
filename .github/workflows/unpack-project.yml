@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   push:
     paths:
-      - "Deacon-Service-Management-FINAL.zip"
+      - "Deacon-Service-Management.zip"
       - ".github/workflows/unpack-project.yml"
 
 permissions:

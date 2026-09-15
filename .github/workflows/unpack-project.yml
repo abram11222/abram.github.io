@@ -1,11 +1,7 @@
-name: Unpack Project
+name: Unpack Deacon Project
 
 on:
   workflow_dispatch:
-  push:
-    paths:
-      - "*.zip"
-      - ".github/workflows/unpack-project.yml"
 
 permissions:
   contents: write
@@ -18,38 +14,54 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Find and unzip project
-        shell: bash
+      - name: Find ZIP
         run: |
-          set -e
+          ZIP=$(find . -maxdepth 1 -type f -iname "*.zip" | head -n 1)
 
-          ZIP_FILE=$(find . -maxdepth 1 -type f -iname "*.zip" | head -n 1)
-
-          if [ -z "$ZIP_FILE" ]; then
-            echo "ERROR: No ZIP file found in repository root."
-            ls -la
+          if [ -z "$ZIP" ]; then
+            echo "No ZIP file found"
             exit 1
           fi
 
-          echo "Found ZIP: $ZIP_FILE"
+          echo "ZIP found: $ZIP"
 
-          rm -rf /tmp/deacon
-          mkdir -p /tmp/deacon
+          mkdir -p /tmp/project
+          unzip -q "$ZIP" -d /tmp/project
 
-          unzip -q "$ZIP_FILE" -d /tmp/deacon
+      - name: Find Android project
+        run: |
+          PROJECT=$(find /tmp/project -type f -name "settings.gradle.kts" -printf '%h\n' | head -n 1)
 
-          ROOT=$(find /tmp/deacon -mindepth 1 -maxdepth 1 -type d | head -n 1)
-
-          if [ -n "$ROOT" ]; then
-            cp -a "$ROOT"/. .
-          else
-            cp -a /tmp/deacon/. .
+          if [ -z "$PROJECT" ]; then
+            echo "Android project not found"
+            find /tmp/project -maxdepth 4 -type f | head -100
+            exit 1
           fi
 
+          echo "Project found: $PROJECT"
+
+          cp -a "$PROJECT"/. .
+
+      - name: Remove ZIP
+        run: |
           rm -f ./*.zip
 
+      - name: Verify project
+        run: |
+          echo "===== PROJECT STRUCTURE ====="
+          ls -la
+
+          echo "===== REQUIRED FILES ====="
+
+          test -d app
+          test -f settings.gradle.kts
+          test -f build.gradle.kts
+
+          echo "APP FOUND"
+          echo "SETTINGS FOUND"
+          echo "BUILD GRADLE FOUND"
+
       - name: Commit project
-        shell: bash
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -59,6 +71,6 @@ jobs:
           if git diff --cached --quiet; then
             echo "No changes to commit"
           else
-            git commit -m "Unpack Deacon Service project"
+            git commit -m "Install Deacon Service project"
             git push
           fi

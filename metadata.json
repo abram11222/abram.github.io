@@ -1,0 +1,7 @@
+{
+  "name": "خدمة الشمامسة",
+  "description": "تطبيق متكامل لإدارة مدرسة وخدمة الشمامسة، تسجيل الحضور والقداسات، الألحان، الإنجيل، والامتحانات وتقارير Excel بنظام Offline-First وقاعدة بيانات Room.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+

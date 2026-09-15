@@ -1,13 +1,13 @@
 name: Build Android APK
 
 on:
-  workflow_dispatch:
   push:
     branches:
       - main
+  workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
@@ -15,73 +15,95 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
+
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Java 17
+      - name: Set up Java 17
         uses: actions/setup-java@v4
         with:
-          distribution: temurin
+          distribution: "temurin"
           java-version: "17"
 
-      - name: Verify Android Project
+      - name: Verify Java
         run: |
-          echo "Checking Android project..."
-
-          test -d app || exit 1
-          test -f settings.gradle.kts || exit 1
-          test -f build.gradle.kts || exit 1
-
-          echo "Android project OK."
+          echo "JAVA_HOME: $JAVA_HOME"
+          java -version
 
       - name: Create .env.example
         run: |
-          printf '%s\n' \
-            'SUPABASE_URL=' \
-            'SUPABASE_ANON_KEY=' \
-            > .env.example
+          cat > .env.example <<'EOF'
+          SUPABASE_URL=
+          SUPABASE_ANON_KEY=
+          EOF
 
-          echo ".env.example created."
+          echo ".env.example created successfully."
 
-      - name: Setup Gradle
+      - name: Set up Gradle 9.3.1
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "9.3.1"
 
-      - name: Check Android SDK
+      - name: Create temporary debug keystore
         run: |
-          if [ -z "$ANDROID_HOME" ]; then
-            echo "ERROR: Android SDK not found."
+          if [ -f "./debug.keystore" ]; then
+            echo "./debug.keystore already exists."
+          else
+            echo "Creating temporary debug keystore..."
+
+            keytool -genkeypair \
+              -v \
+              -keystore ./debug.keystore \
+              -storepass android \
+              -alias androiddebugkey \
+              -keypass android \
+              -dname "CN=Android Debug,O=Android,C=US" \
+              -keyalg RSA \
+              -keysize 2048 \
+              -validity 10000
+          fi
+
+          if [ ! -f "./debug.keystore" ]; then
+            echo "ERROR: Failed to create debug.keystore."
             exit 1
           fi
 
-          echo "Android SDK: $ANDROID_HOME"
+          echo "Debug keystore ready."
 
-      - name: Build Debug APK
+      - name: Verify Android project
         run: |
-          gradle :app:assembleDebug \
-            --stacktrace \
-            --no-daemon
+          test -d app
+          test -f settings.gradle.kts
+          test -f build.gradle.kts
 
-      - name: Verify APK
+          echo "Android project structure OK."
+
+      - name: Build debug APK
         run: |
-          APK="app/build/outputs/apk/debug/app-debug.apk"
+          gradle :app:assembleDebug --stacktrace --no-daemon
 
-          if [ ! -f "$APK" ]; then
-            echo "ERROR: APK was not generated."
-            find . -type f -name "*.apk" -print
+      - name: Verify debug APK
+        run: |
+          TARGET_APK="app/build/outputs/apk/debug/app-debug.apk"
+
+          if [ ! -f "$TARGET_APK" ]; then
+            echo "ERROR: APK not found."
+            find app/build -type f -name "*.apk" -print
             exit 1
           fi
 
-          if [ ! -s "$APK" ]; then
+          if [ ! -s "$TARGET_APK" ]; then
             echo "ERROR: APK is empty."
             exit 1
           fi
 
+          echo "======================================"
           echo "APK BUILD SUCCESSFUL"
-          ls -lh "$APK"
+          echo "======================================"
 
-      - name: Upload APK
+          ls -lh "$TARGET_APK"
+
+      - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
           name: Deacon-Service-Management-APK

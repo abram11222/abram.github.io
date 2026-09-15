@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   push:
     paths:
-      - "Deacon-Service-Management.zip"
+      - "*.zip"
       - ".github/workflows/unpack-project.yml"
 
 permissions:
@@ -18,19 +18,38 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Unzip project
+      - name: Find and unzip project
+        shell: bash
         run: |
+          set -e
+
+          ZIP_FILE=$(find . -maxdepth 1 -type f -iname "*.zip" | head -n 1)
+
+          if [ -z "$ZIP_FILE" ]; then
+            echo "ERROR: No ZIP file found in repository root."
+            ls -la
+            exit 1
+          fi
+
+          echo "Found ZIP: $ZIP_FILE"
+
           rm -rf /tmp/deacon
           mkdir -p /tmp/deacon
-          unzip -q Deacon-Service-Management-FINAL.zip -d /tmp/deacon
 
-          ROOT=$(find /tmp/deacon -maxdepth 1 -mindepth 1 -type d | head -1)
+          unzip -q "$ZIP_FILE" -d /tmp/deacon
 
-          cp -a "$ROOT"/. .
+          ROOT=$(find /tmp/deacon -mindepth 1 -maxdepth 1 -type d | head -n 1)
 
-          rm -f Deacon-Service-Management-FINAL.zip
+          if [ -n "$ROOT" ]; then
+            cp -a "$ROOT"/. .
+          else
+            cp -a /tmp/deacon/. .
+          fi
+
+          rm -f ./*.zip
 
       - name: Commit project
+        shell: bash
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -38,8 +57,8 @@ jobs:
           git add -A
 
           if git diff --cached --quiet; then
-            echo "No changes"
+            echo "No changes to commit"
           else
-            git commit -m "Install Deacon Service project"
+            git commit -m "Unpack Deacon Service project"
             git push
           fi

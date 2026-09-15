@@ -15,7 +15,6 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-
       - name: Checkout
         uses: actions/checkout@v4
 
@@ -26,41 +25,23 @@ jobs:
           java-version: "17"
 
       - name: Verify Android Project
-        shell: bash
         run: |
-          echo "======================================"
           echo "Checking Android project..."
-          echo "======================================"
 
-          pwd
-          ls -la
+          test -d app || exit 1
+          test -f settings.gradle.kts || exit 1
+          test -f build.gradle.kts || exit 1
 
-          if [ ! -d "app" ]; then
-            echo "ERROR: app directory not found."
-            exit 1
-          fi
-
-          if [ ! -f "settings.gradle.kts" ]; then
-            echo "ERROR: settings.gradle.kts not found."
-            exit 1
-          fi
-
-          if [ ! -f "build.gradle.kts" ]; then
-            echo "ERROR: build.gradle.kts not found."
-            exit 1
-          fi
-
-          echo "Android project structure OK."
+          echo "Android project OK."
 
       - name: Create .env.example
-        shell: bash
         run: |
-          cat > .env.example <<'EOF'
-          SUPABASE_URL=
-          SUPABASE_ANON_KEY=
-          EOF
+          printf '%s\n' \
+            'SUPABASE_URL=' \
+            'SUPABASE_ANON_KEY=' \
+            > .env.example
 
-          echo ".env.example created successfully."
+          echo ".env.example created."
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
@@ -68,48 +49,36 @@ jobs:
           gradle-version: "9.3.1"
 
       - name: Check Android SDK
-        shell: bash
         run: |
-          echo "ANDROID_HOME=$ANDROID_HOME"
-          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
-
           if [ -z "$ANDROID_HOME" ]; then
             echo "ERROR: Android SDK not found."
             exit 1
           fi
 
-          echo "Android SDK detected."
+          echo "Android SDK: $ANDROID_HOME"
 
       - name: Build Debug APK
-        shell: bash
         run: |
           gradle :app:assembleDebug \
             --stacktrace \
             --no-daemon
 
       - name: Verify APK
-        shell: bash
         run: |
           APK="app/build/outputs/apk/debug/app-debug.apk"
 
           if [ ! -f "$APK" ]; then
             echo "ERROR: APK was not generated."
-
-            echo "Searching for APK files:"
             find . -type f -name "*.apk" -print
-
             exit 1
           fi
 
           if [ ! -s "$APK" ]; then
-            echo "ERROR: APK file is empty."
+            echo "ERROR: APK is empty."
             exit 1
           fi
 
-          echo "======================================"
-          echo "       APK BUILD SUCCESSFUL"
-          echo "======================================"
-
+          echo "APK BUILD SUCCESSFUL"
           ls -lh "$APK"
 
       - name: Upload APK

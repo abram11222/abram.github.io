@@ -23,45 +23,58 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Setup Gradle
+      - name: Setup Gradle 9.3.1
         uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.3.1'
 
-      - name: Check project
+      - name: Verify Android project
         run: |
-          echo "Project root:"
+          echo "===== PROJECT ROOT ====="
           pwd
-
-          echo "Files:"
           ls -la
 
-          echo "Checking Android project..."
+          echo "===== CHECKING REQUIRED FILES ====="
 
-          test -d app
-          test -f settings.gradle.kts
+          if [ ! -d "app" ]; then
+            echo "ERROR: app directory is missing."
+            exit 1
+          fi
 
-          echo "Android project detected successfully."
+          if [ ! -f "settings.gradle.kts" ]; then
+            echo "ERROR: settings.gradle.kts is missing."
+            exit 1
+          fi
+
+          if [ ! -f "build.gradle.kts" ]; then
+            echo "ERROR: build.gradle.kts is missing."
+            exit 1
+          fi
+
+          echo "Android project structure is OK."
 
       - name: Build Debug APK
         run: |
-          chmod +x gradlew
-          ./gradlew :app:assembleDebug --stacktrace --no-daemon
+          gradle :app:assembleDebug --stacktrace --no-daemon
 
       - name: Verify APK
         run: |
           APK="app/build/outputs/apk/debug/app-debug.apk"
 
           if [ ! -f "$APK" ]; then
-            echo "APK was not generated."
+            echo "ERROR: APK was not generated."
             find app/build -type f -name "*.apk" 2>/dev/null || true
             exit 1
           fi
 
           if [ ! -s "$APK" ]; then
-            echo "APK is empty."
+            echo "ERROR: APK is empty."
             exit 1
           fi
 
-          echo "APK successfully generated:"
+          echo "================================"
+          echo "APK BUILD SUCCESSFUL"
+          echo "================================"
           ls -lh "$APK"
 
       - name: Upload APK
